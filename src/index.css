@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: #0a0a0f;
+    color: #f8fafc;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #111118;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #6366f1;
+    border-radius: 2px;
+  }
+}
+
+@layer components {
+  .neon-border {
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+
+  .glass-card {
+    background: rgba(17, 17, 24, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+  }
+
+  .btn-primary {
+    @apply bg-neon-purple text-white font-semibold py-3 px-6 rounded-xl
+           shadow-neon-purple active:scale-95 transition-all duration-150;
+  }
+
+  .btn-ghost {
+    @apply bg-bg-elevated text-text-primary font-medium py-3 px-6 rounded-xl
+           border border-bg-border active:scale-95 transition-all duration-150;
+  }
+
+  .stat-chip {
+    @apply flex items-center gap-1.5 bg-bg-elevated px-3 py-1.5 rounded-lg
+           border border-bg-border text-sm font-medium;
+  }
+}
+
+/* Leaflet dark theme override */
+.leaflet-container {
+  background: #0a0a0f !important;
+}
+
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(10, 10, 15, 0.7) !important;
+  color: #475569 !important;
+  font-size: 9px !important;
+}
+
+.leaflet-control-attribution a {
+  color: #6366f1 !important;
+}
+
+/* Territory pulse animation */
+@keyframes territoryPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0.9; }
+}
+
+.territory-own {
+  animation: territoryPulse 3s ease-in-out infinite;
+}
+
+/* Input styles */
+input, textarea {
+  background: #1a1a28;
+  border: 1px solid #1e1e2e;
+  color: #f8fafc;
+  border-radius: 12px;
+  padding: 12px 16px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+input::placeholder {
+  color: #475569;
+}
