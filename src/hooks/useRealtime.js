@@ -5,22 +5,22 @@ import { useNotificationStore } from '../store/useNotificationStore'
 import { useAuthStore } from '../store/useAuthStore'
 
 export function useRealtime() {
-  const channelsRef = useRef([])
+  const posChannelRef = useRef(null)
   const user = useAuthStore((s) => s.user)
-  const { addTerritory, removeTerritory, updateLivePlayer, removeLivePlayer } = useGameStore()
+  const { addTerritory, removeTerritory, updateLivePlayer } = useGameStore()
   const { addNotification } = useNotificationStore()
 
   useEffect(() => {
     if (!user?.id) return
 
-    // 1. Territory o'zgarishlari (Postgres Realtime)
+    // ── 1. Territory o'zgarishlari ─────────────────────────────
+    // MUHIM: barcha .on() lar .subscribe() DAN OLDIN zanjirlanadi
     const territoriesChannel = supabase
-      .channel('territories-db')
+      .channel(`territories-db-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'territories' },
         ({ new: row }) => {
-          // Boshqa o'yinchilarning yangi hududlarini qo'sh
           if (row.user_id !== user.id) addTerritory(row)
         }
       )
@@ -31,7 +31,7 @@ export function useRealtime() {
       )
       .subscribe()
 
-    // 2. Foydalanuvchiga kelgan notificationlar (Postgres Realtime)
+    // ── 2. Foydalanuvchiga kelgan notificationlar ──────────────
     const notifChannel = supabase
       .channel(`notif-${user.id}`)
       .on(
@@ -43,16 +43,16 @@ export function useRealtime() {
           filter: `user_id=eq.${user.id}`,
         },
         ({ new: row }) =>
-          addNotification({
-            ...row,
-            urgent: row.type === 'attack',
-          })
+          addNotification({ ...row, urgent: row.type === 'attack' })
       )
       .subscribe()
 
-    // 3. O'yinchi pozitsiyalari (Broadcast — DBga yozilmaydi, tez)
+    // ── 3. O'yinchi pozitsiyalari (broadcast, DBsiz) ───────────
+    // { config: { broadcast: { self: false } } } ishlatilmaydi —
+    // u ichida presence triggerlaydi va StrictMode da crash qiladi.
+    // O'z pozitsiyamizni filtr payload.userId === user.id orqali qilamiz.
     const posChannel = supabase
-      .channel('player-positions', { config: { broadcast: { self: false } } })
+      .channel('player-positions')
       .on('broadcast', { event: 'pos' }, ({ payload }) => {
         if (!payload?.userId || payload.userId === user.id) return
         updateLivePlayer({
@@ -64,25 +64,21 @@ export function useRealtime() {
       })
       .subscribe()
 
-    // Offline bo'lganda o'yinchini xaritadan olib tashlash
-    posChannel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
-      leftPresences.forEach((p) => removeLivePlayer(p.userId))
-    })
-
-    channelsRef.current = [territoriesChannel, notifChannel, posChannel]
+    posChannelRef.current = posChannel
 
     return () => {
-      channelsRef.current.forEach((ch) => supabase.removeChannel(ch))
-      channelsRef.current = []
+      supabase.removeChannel(territoriesChannel)
+      supabase.removeChannel(notifChannel)
+      supabase.removeChannel(posChannel)
+      posChannelRef.current = null
     }
   }, [user?.id])
 
-  // GPS harakatini boshqa o'yinchilarga broadcast qilish
+  // GPS pozitsiyasini boshqa o'yinchilarga yuborish
   const broadcastPosition = useCallback(
     (lat, lng) => {
-      if (!user) return
-      const posChannel = channelsRef.current[2]
-      posChannel?.send({
+      if (!user || !posChannelRef.current) return
+      posChannelRef.current.send({
         type: 'broadcast',
         event: 'pos',
         payload: {
